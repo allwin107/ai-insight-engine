@@ -165,6 +165,200 @@ def show_dashboard():
     # Main content
     st.title("📊 AI Data Insight Engine")
     
+    # Tabs
+    tab1, tab2, tab3 = st.tabs(["📤 Upload", "📋 My Jobs", "ℹ️ About"])
+    
+    with tab1:
+        show_upload_tab()
+    
+    with tab2:
+        show_jobs_tab()
+    
+    with tab3:
+        show_about_tab()
+
+def show_upload_tab():
+    """Upload file tab"""
+    st.header("📤 Upload Your Data")
+    
+    st.info("""
+    **Supported formats:** CSV, Excel (.xlsx, .xls)  
+    **Maximum file size:** 10 MB  
+    **Maximum rows:** 10,000 rows
+    """)
+    
+    # File uploader
+    uploaded_file = st.file_uploader(
+        "Choose a file",
+        type=['csv', 'xlsx', 'xls'],
+        help="Upload your business data file"
+    )
+    
+    if uploaded_file is not None:
+        # Show file details
+        st.success(f"✅ File selected: **{uploaded_file.name}**")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("File Size", f"{uploaded_file.size / 1024:.1f} KB")
+        with col2:
+            st.metric("File Type", uploaded_file.type)
+        
+        st.divider()
+        
+        # Upload button
+        if st.button("🚀 Upload & Analyze", type="primary", use_container_width=True):
+            with st.spinner("Uploading file..."):
+                success, message, job_id = upload_file_to_api(uploaded_file)
+                
+                if success:
+                    st.success(f"✅ {message}")
+                    st.info(f"**Job ID:** `{job_id}`")
+                    st.balloons()
+                    
+                    # Update user stats
+                    st.session_state.user['upload_count'] += 1
+                    
+                    # Show next steps
+                    st.markdown("""
+                    ### What's Next?
+                    1. Go to **"My Jobs"** tab to see processing status
+                    2. Processing usually takes 1-2 minutes
+                    3. You'll see charts and insights when complete!
+                    """)
+                else:
+                    st.error(f"❌ {message}")
+    else:
+        # Example datasets
+        st.markdown("### 📊 Don't have data? Try our examples:")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📈 Sales Data", use_container_width=True):
+                st.info("Example dataset coming soon!")
+        
+        with col2:
+            if st.button("🛒 E-commerce", use_container_width=True):
+                st.info("Example dataset coming soon!")
+        
+        with col3:
+            if st.button("📊 Marketing", use_container_width=True):
+                st.info("Example dataset coming soon!")
+
+def upload_file_to_api(file):
+    """Upload file to API"""
+    try:
+        files = {"file": (file.name, file.getvalue(), file.type)}
+        headers = {"Authorization": f"Bearer {st.session_state.token}"}
+        
+        response = requests.post(
+            f"{API_URL}/api/v1/upload",
+            files=files,
+            headers=headers,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return True, data['message'], data['job_id']
+        else:
+            error = response.json().get('detail', 'Upload failed')
+            return False, error, None
+            
+    except Exception as e:
+        return False, str(e), None
+
+def show_jobs_tab():
+    """Show user's jobs"""
+    st.header("📋 My Processing Jobs")
+    
+    # Fetch jobs
+    jobs = fetch_user_jobs()
+    
+    if jobs is None:
+        st.error("Failed to load jobs")
+        return
+    
+    if len(jobs) == 0:
+        st.info("No jobs yet. Upload a file to get started!")
+        return
+    
+    # Display jobs
+    for job in jobs:
+        with st.expander(f"📄 {job['filename']} - {job['status'].upper()}", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Status", job['status'].title())
+            
+            with col2:
+                st.metric("Progress", f"{job['progress']}%")
+            
+            with col3:
+                if job['quality_score']:
+                    st.metric("Quality", f"{job['quality_score']}/100")
+                else:
+                    st.metric("Quality", "N/A")
+            
+            st.text(f"Created: {job['created_at'][:19]}")
+            st.text(f"Job ID: {job['job_id']}")
+            
+            # Action buttons
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("🔄 Refresh", key=f"refresh_{job['job_id']}"):
+                    st.rerun()
+            
+            with col2:
+                if job['status'] == 'complete':
+                    if st.button("📊 View Results", key=f"view_{job['job_id']}"):
+                        st.info("Results viewer coming soon!")
+            
+            with col3:
+                if st.button("🗑️ Delete", key=f"delete_{job['job_id']}"):
+                    if delete_job(job['job_id']):
+                        st.success("Job deleted!")
+                        st.rerun()
+
+def fetch_user_jobs():
+    """Fetch user's jobs from API"""
+    try:
+        headers = {"Authorization": f"Bearer {st.session_state.token}"}
+        response = requests.get(
+            f"{API_URL}/api/v1/jobs",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data['jobs']
+        else:
+            return None
+            
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return None
+
+def delete_job(job_id: str) -> bool:
+    """Delete a job"""
+    try:
+        headers = {"Authorization": f"Bearer {st.session_state.token}"}
+        response = requests.delete(
+            f"{API_URL}/api/v1/jobs/{job_id}",
+            headers=headers,
+            timeout=10
+        )
+        return response.status_code == 200
+    except:
+        return False
+
+def show_about_tab():
+    """About and development progress"""
+    st.header("ℹ️ About This Project")
+    
     # Status info
     col1, col2, col3 = st.columns(3)
     
@@ -179,14 +373,14 @@ def show_dashboard():
     
     st.divider()
     
-    # Coming soon
-    st.success("✅ **Day 2 Complete:** Authentication system working!")
+    # Progress update
+    st.success("✅ **Day 3 Complete:** File upload system working!")
     
     st.info("""
-    **Coming Next (Day 3):**
-    - File upload functionality
-    - Processing status tracking
-    - Job management
+    **Coming Next (Day 4):**
+    - Configuration improvements
+    - Testing framework
+    - Docker deployment setup
     """)
     
     # Development roadmap
@@ -197,16 +391,35 @@ def show_dashboard():
         - ✅ Project setup
         - ✅ API framework
         - ✅ Database & Authentication
-        - 🔄 File upload (Day 3)
+        - ✅ File upload & job tracking
+        - 🔄 Configuration & Docker (Day 4-5)
         """)
     
     with st.expander("📋 Week 3-4: Data Cleaning"):
         st.markdown("""
-        - File upload
-        - Automated data cleaning
+        - Automated data cleaning pipeline
         - Quality scoring
         - Cleaning logs
+        - Edge case handling
         """)
+    
+    with st.expander("📊 Week 5-6: Visualizations & AI"):
+        st.markdown("""
+        - Chart generation with AutoViz
+        - LLM integration (Llama 3.1)
+        - Business insights generation
+        - Confidence scoring
+        """)
+    
+    # Footer
+    st.divider()
+    st.markdown("""
+    <div style='text-align: center'>
+        <p>Built with ❤️ using FastAPI, Streamlit & Llama 3.1</p>
+        <p><a href='https://github.com/YOUR_USERNAME/ai-insight-engine'>GitHub</a> | 
+        <a href='http://localhost:8000/docs'>API Docs</a></p>
+    </div>
+    """, unsafe_allow_html=True)
 
 def main():
     """Main application"""

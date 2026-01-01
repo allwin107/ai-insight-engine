@@ -10,6 +10,7 @@ from datetime import datetime
 from app.config import settings
 from app.database import init_db
 from app.auth.routes import router as auth_router
+from app.api.upload import router as upload_router
 
 # Initialize database
 init_db()
@@ -34,6 +35,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(upload_router)
 
 # Root endpoint
 @app.get("/")

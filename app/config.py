@@ -2,7 +2,7 @@
 Configuration Management
 Loads settings from environment variables
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 from dotenv import load_dotenv
@@ -12,6 +12,11 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings"""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True
+    )
     
     # Application
     ENVIRONMENT: str = "development"
@@ -41,8 +46,15 @@ class Settings(BaseSettings):
     # File Upload
     MAX_FILE_SIZE_MB: int = 10
     MAX_ROWS: int = 10000
-    ALLOWED_EXTENSIONS: List[str] = ["csv", "xlsx", "xls"]
+    ALLOWED_EXTENSIONS: str = "csv,xlsx,xls"  # Changed to string, will parse in property
     UPLOAD_DIR: str = "/tmp/uploads"
+    
+    @property
+    def allowed_extensions_list(self) -> List[str]:
+        """Parse ALLOWED_EXTENSIONS string into list"""
+        if isinstance(self.ALLOWED_EXTENSIONS, str):
+            return [ext.strip() for ext in self.ALLOWED_EXTENSIONS.split(',')]
+        return self.ALLOWED_EXTENSIONS
     
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = 10
@@ -62,10 +74,6 @@ class Settings(BaseSettings):
     # Email (Optional)
     SENDGRID_API_KEY: str = ""
     FROM_EMAIL: str = ""
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 # Create global settings instance
 settings = Settings()
