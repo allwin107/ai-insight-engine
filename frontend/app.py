@@ -16,6 +16,12 @@ st.set_page_config(
 # Get API URL from environment
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
+# Initialize session state
+if 'token' not in st.session_state:
+    st.session_state.token = None
+if 'user' not in st.session_state:
+    st.session_state.user = None
+
 def check_api_health():
     """Check if backend API is running"""
     try:
@@ -24,34 +30,140 @@ def check_api_health():
     except:
         return False
 
-def main():
-    """Main application"""
-    
-    # Header
+def register_user(email, password, full_name):
+    """Register a new user"""
+    try:
+        response = requests.post(
+            f"{API_URL}/api/v1/auth/register",
+            json={
+                "email": email,
+                "password": password,
+                "full_name": full_name
+            }
+        )
+        if response.status_code == 201:
+            data = response.json()
+            st.session_state.token = data['access_token']
+            st.session_state.user = data['user']
+            return True, "Registration successful!"
+        else:
+            return False, response.json().get('detail', 'Registration failed')
+    except Exception as e:
+        return False, str(e)
+
+def login_user(email, password):
+    """Login user"""
+    try:
+        response = requests.post(
+            f"{API_URL}/api/v1/auth/login",
+            json={
+                "email": email,
+                "password": password
+            }
+        )
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state.token = data['access_token']
+            st.session_state.user = data['user']
+            return True, "Login successful!"
+        else:
+            return False, response.json().get('detail', 'Login failed')
+    except Exception as e:
+        return False, str(e)
+
+def logout_user():
+    """Logout user"""
+    st.session_state.token = None
+    st.session_state.user = None
+
+def show_auth_page():
+    """Show login/register page"""
     st.title("📊 AI Data Insight Engine")
     st.markdown("Transform raw business data into actionable insights automatically")
     
-    # Sidebar
-    with st.sidebar:
-        st.header("🚀 Quick Start")
-        st.markdown("""
-        1. **Upload** your CSV/Excel file
-        2. **Wait** for AI to analyze (1-2 min)
-        3. **View** insights and charts
-        4. **Download** PDF report
-        """)
-        
-        st.divider()
-        
-        # API Status
+    # Check API status
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
         if check_api_health():
             st.success("✅ API Connected")
         else:
-            st.error("❌ API Disconnected")
-            st.info(f"Make sure backend is running at {API_URL}")
+            st.error("❌ API Disconnected - Make sure backend is running")
+            return
+    
+    st.divider()
+    
+    # Tabs for login and register
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+    
+    with tab1:
+        st.subheader("Login to Your Account")
+        
+        with st.form("login_form"):
+            email = st.text_input("Email", placeholder="your@email.com")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Login", use_container_width=True)
+            
+            if submit:
+                if not email or not password:
+                    st.error("Please fill in all fields")
+                else:
+                    success, message = login_user(email, password)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+    
+    with tab2:
+        st.subheader("Create New Account")
+        
+        with st.form("register_form"):
+            full_name = st.text_input("Full Name", placeholder="John Doe")
+            email = st.text_input("Email", placeholder="your@email.com")
+            password = st.text_input("Password", type="password", help="Min 8 characters")
+            password_confirm = st.text_input("Confirm Password", type="password")
+            submit = st.form_submit_button("Register", use_container_width=True)
+            
+            if submit:
+                if not email or not password or not password_confirm:
+                    st.error("Please fill in all required fields")
+                elif password != password_confirm:
+                    st.error("Passwords don't match")
+                elif len(password) < 8:
+                    st.error("Password must be at least 8 characters")
+                else:
+                    success, message = register_user(email, password, full_name)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+def show_dashboard():
+    """Show main dashboard for authenticated users"""
+    # Sidebar
+    with st.sidebar:
+        st.header(f"👤 {st.session_state.user['email']}")
+        
+        if st.session_state.user.get('full_name'):
+            st.write(f"**{st.session_state.user['full_name']}**")
+        
+        st.divider()
+        
+        # User stats
+        st.metric(
+            "Uploads This Month", 
+            f"{st.session_state.user['upload_count']}/{st.session_state.user['upload_limit']}"
+        )
+        
+        st.divider()
+        
+        if st.button("🚪 Logout", use_container_width=True):
+            logout_user()
+            st.rerun()
     
     # Main content
-    st.header("Welcome! 👋")
+    st.title("📊 AI Data Insight Engine")
     
     # Status info
     col1, col2, col3 = st.columns(3)
@@ -67,15 +179,25 @@ def main():
     
     st.divider()
     
-    # Coming soon section
-    st.subheader("🎯 What's Coming")
+    # Coming soon
+    st.success("✅ **Day 2 Complete:** Authentication system working!")
+    
+    st.info("""
+    **Coming Next (Day 3):**
+    - File upload functionality
+    - Processing status tracking
+    - Job management
+    """)
+    
+    # Development roadmap
+    st.subheader("🎯 Development Progress")
     
     with st.expander("✅ Week 1-2: Foundation (Current)", expanded=True):
         st.markdown("""
-        - Project setup
-        - API framework
-        - Basic UI
-        - Development environment
+        - ✅ Project setup
+        - ✅ API framework
+        - ✅ Database & Authentication
+        - 🔄 File upload (Day 3)
         """)
     
     with st.expander("📋 Week 3-4: Data Cleaning"):
@@ -85,50 +207,15 @@ def main():
         - Quality scoring
         - Cleaning logs
         """)
+
+def main():
+    """Main application"""
     
-    with st.expander("📊 Week 5-6: Visualizations & AI"):
-        st.markdown("""
-        - Chart generation
-        - LLM integration
-        - Business insights
-        - Confidence scoring
-        """)
-    
-    with st.expander("🎨 Week 7-8: Dashboard"):
-        st.markdown("""
-        - Results display
-        - Interactive UI
-        - Chart gallery
-        - Insight cards
-        """)
-    
-    with st.expander("📄 Week 9-10: Export & Testing"):
-        st.markdown("""
-        - PDF generation
-        - Quality assurance
-        - Performance testing
-        - Bug fixes
-        """)
-    
-    with st.expander("🚀 Week 11-12: Launch"):
-        st.markdown("""
-        - Beta testing
-        - Documentation
-        - Public launch
-        - User feedback
-        """)
-    
-    st.divider()
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center'>
-        <p>Built with ❤️ using FastAPI, Streamlit & Llama 3.1</p>
-        <p><a href='https://github.com/YOUR_USERNAME/ai-insight-engine'>GitHub</a> | 
-        <a href='{API_URL}/docs'>API Docs</a></p>
-    </div>
-    """.format(API_URL=API_URL), unsafe_allow_html=True)
+    # Check if user is authenticated
+    if st.session_state.token and st.session_state.user:
+        show_dashboard()
+    else:
+        show_auth_page()
 
 if __name__ == "__main__":
     main()
