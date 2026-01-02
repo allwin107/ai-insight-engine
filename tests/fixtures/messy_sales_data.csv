@@ -1,0 +1,22 @@
+Date,Product,Category,Sales,Quantity,Region,Customer Type,Notes
+2024-01-01,Laptop,Electronics,$1,200.50,5,North,Business,Good sale
+2024-01-02,Mouse,Accessories,25.00,50,South,consumer,
+01/03/2024,Keyboard,Accessories,$75,30,EAST,Consumer,
+2024-01-04,Monitor,Electronics,350,8,West,Business,Premium
+2024-01-05,Laptop,Electronics,1150.00,4,North,Consumer,
+2024-01-06,Desk,Furniture,450,3,South,BUSINESS,
+07-01-2024,Chair,Furniture,,6,East,Business,Missing sales value
+2024-01-08,Mouse,Accessories,20.00,999,West,consumer,Possible error in quantity
+,Laptop,Electronics,1300.00,6,North,Business,Missing date
+2024-01-10,Monitor,Electronics,400,10,South,Business,
+2024-01-11,Keyboard,,,80,35,East,Consumer,Missing category
+2024-01-12,Desk,Furniture,$500,4,West,Business,
+2024-01-13,Chair,Furniture,280.00,5,north,Business,
+2024-01-14,Mouse,Accessories,$22,45,SOUTH,Consumer,
+2024-01-15,Laptop,Electronics,1250,5,East,business,
+2024-01-16,Monitor,Electronics,9999.99,9,West,Consumer,Possible outlier
+2024-01-17,Keyboard,Accessories,70.00,28,North,Consumer,
+18/01/2024,Desk,Furniture,480,3,South,Business,Different date format
+2024-01-19,Chair,Furniture,320.00,7,East,,Missing customer type
+2024-01-20,Laptop,Electronics,$1,400,7,West,Business,Extra comma in sales
+2024-01-01,Laptop,Electronics,$1,200.50,5,North,Business,Duplicate row

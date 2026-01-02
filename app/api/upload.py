@@ -1,7 +1,7 @@
 """
 File Upload API endpoints
 """
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/v1", tags=["Upload"])
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -25,6 +26,7 @@ async def upload_file(
     Upload a CSV or Excel file for processing
     
     Requires authentication. Returns job_id for tracking.
+    Automatically starts data cleaning in the background.
     """
     
     # Check upload limit
@@ -67,12 +69,21 @@ async def upload_file(
     db.commit()
     db.refresh(new_job)
     
+    # Start processing in background
+    from app.api.process import process_job_background
+    background_tasks.add_task(
+        process_job_background,
+        job_id=job_id,
+        filepath=filepath,
+        user_id=current_user.id
+    )
+    
     return {
         "job_id": job_id,
         "filename": file.filename,
         "file_size": file_size,
-        "status": "queued",
-        "message": "File uploaded successfully. Processing will start shortly.",
+        "status": "processing",
+        "message": "File uploaded successfully. Processing started automatically.",
         "created_at": new_job.created_at.isoformat()
     }
 

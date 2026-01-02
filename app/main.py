@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import init_db
 from app.auth.routes import router as auth_router
 from app.api.upload import router as upload_router
+from app.api.process import router as process_router
 from app.utils.logging import logger
 
 # Initialize database
@@ -68,6 +69,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(upload_router)
+app.include_router(process_router)
 
 # Root endpoint
 @app.get("/")
