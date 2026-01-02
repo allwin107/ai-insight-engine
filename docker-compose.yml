@@ -1,0 +1,50 @@
+services:
+  # Backend API
+  backend:
+    build: .
+    container_name: ai-insight-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///./app.db
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
+      - LLM_ENDPOINT=${LLM_ENDPOINT:-}
+      - CORS_ORIGINS=["http://localhost:8501","http://localhost:3000"]
+      - ALLOWED_EXTENSIONS=csv,xlsx,xls
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/tmp/uploads
+      - ./app.db:/app/app.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Frontend (Streamlit)
+  frontend:
+    image: python:3.11-slim
+    container_name: ai-insight-frontend
+    working_dir: /app
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://backend:8000
+    volumes:
+      - ./frontend:/app/frontend
+      - ./requirements.txt:/app/requirements.txt
+    command: >
+      bash -c "
+        pip install streamlit requests &&
+        streamlit run frontend/app.py --server.address 0.0.0.0
+      "
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  database:

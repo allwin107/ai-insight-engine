@@ -3,7 +3,8 @@ Configuration Management
 Loads settings from environment variables
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 import os
 from dotenv import load_dotenv
 
@@ -27,7 +28,21 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     API_URL: str = "http://localhost:8000"
-    CORS_ORIGINS: List[str] = ["http://localhost:8501", "http://localhost:3000"]
+    CORS_ORIGINS: Union[List[str], str] = '["http://localhost:8501", "http://localhost:3000"]'
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from string or list"""
+        if isinstance(v, str):
+            # Try to parse as JSON first
+            try:
+                import json
+                return json.loads(v)
+            except:
+                # If not JSON, treat as comma-separated
+                return [origin.strip() for origin in v.split(',')]
+        return v
     
     # Frontend
     FRONTEND_URL: str = "http://localhost:8501"

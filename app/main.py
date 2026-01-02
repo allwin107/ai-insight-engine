@@ -1,19 +1,22 @@
 """
 AI Data Insight Engine - Main FastAPI Application
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 from datetime import datetime
+import time
 
 from app.config import settings
 from app.database import init_db
 from app.auth.routes import router as auth_router
 from app.api.upload import router as upload_router
+from app.utils.logging import logger
 
 # Initialize database
 init_db()
+logger.info("database_initialized")
 
 # Create FastAPI app
 app = FastAPI(
@@ -23,6 +26,35 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests"""
+    start_time = time.time()
+    
+    # Log request
+    logger.info(
+        "request_started",
+        method=request.method,
+        path=request.url.path,
+        client=request.client.host if request.client else None
+    )
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Log response
+    process_time = time.time() - start_time
+    logger.info(
+        "request_completed",
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        process_time=f"{process_time:.3f}s"
+    )
+    
+    return response
 
 # CORS Middleware
 app.add_middleware(
