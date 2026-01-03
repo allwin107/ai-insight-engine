@@ -106,9 +106,99 @@ class TestDataCleaner:
         assert 'cleaning_log' in result
         assert len(result['cleaning_log']) > 0
         
-        # Messy data should have lower quality score before cleaning
-        # But pipeline should still complete
-        assert result['quality_score'] >= 0
+        # Should have quality scores before and after
+        assert 'quality_score_before' in result
+        assert 'quality_score_after' in result
+        
+        # Quality should improve or stay same
+        assert result['quality_score_after'] >= result['quality_score_before']
+        
+        # Missing values should be reduced
+        missing_after = result['cleaned_df'].isnull().sum().sum()
+        assert missing_after == 0 or missing_after < result['stats']['missing_cells']
+    
+    def test_missing_value_imputation(self):
+        """Test ML-based missing value imputation"""
+        cleaner = DataCleaner()
+        
+        # Create DataFrame with missing values
+        df = pd.DataFrame({
+            'A': [1, 2, None, 4, 5, 6, 7, 8],
+            'B': [10, 20, 30, None, 50, 60, 70, 80],
+            'C': ['x', 'y', None, 'z', 'x', 'y', 'z', 'x']
+        })
+        
+        # Infer schema first
+        cleaner.schema = cleaner._infer_schema(df)
+        
+        # Apply imputation
+        df_imputed = cleaner._handle_missing_values(df)
+        
+        # Check that missing values are filled
+        assert df_imputed['A'].isnull().sum() == 0
+        assert df_imputed['B'].isnull().sum() == 0
+        assert df_imputed['C'].isnull().sum() == 0
+    
+    def test_outlier_detection(self):
+        """Test outlier detection and handling"""
+        cleaner = DataCleaner()
+        
+        # Create DataFrame with outliers
+        df = pd.DataFrame({
+            'Sales': [100, 105, 98, 102, 9999, 103, 101, 104],  # 9999 is outlier
+            'Quantity': [10, 12, 11, 999, 13, 11, 12, 10]  # 999 is suspicious
+        })
+        
+        # Infer schema
+        cleaner.schema = cleaner._infer_schema(df)
+        
+        # Handle outliers
+        df_cleaned = cleaner._handle_outliers(df)
+        
+        # Extreme values should be capped
+        assert df_cleaned['Sales'].max() < 9999
+        assert df_cleaned['Quantity'].max() < 999
+    
+    def test_business_rules(self):
+        """Test business rule application"""
+        cleaner = DataCleaner()
+        
+        # Create DataFrame with business rule violations
+        df = pd.DataFrame({
+            'Revenue': [1000, -500, 2000, 3000],  # Negative revenue
+            'Quantity': [10, 999, 12, 15]  # 999 is error code
+        })
+        
+        # Infer schema
+        cleaner.schema = cleaner._infer_schema(df)
+        
+        # Apply business rules
+        corrections = cleaner._apply_business_rules(df)
+        
+        # Negative revenue should be corrected
+        assert (df['Revenue'] >= 0).all()
+        
+        # Suspicious quantity should be replaced
+        assert 999 not in df['Quantity'].values
+        
+        # Should have made corrections
+        assert corrections > 0
+    
+    def test_duplicate_removal(self):
+        """Test duplicate row removal"""
+        cleaner = DataCleaner()
+        
+        # Create DataFrame with duplicates
+        df = pd.DataFrame({
+            'A': [1, 2, 1, 4, 2],
+            'B': ['x', 'y', 'x', 'z', 'y']
+        })
+        
+        df_dedup = cleaner._remove_duplicates(df)
+        
+        # Duplicates should be removed
+        assert len(df_dedup) == 3  # Only unique rows
+        assert df_dedup.duplicated().sum() == 0
     
     def test_analyze_column(self, sample_csv_path):
         """Test column analysis"""
